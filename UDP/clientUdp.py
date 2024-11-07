@@ -18,7 +18,7 @@ def enviarPing(socketCliente, numeroPing):
         resposta, _ = socketCliente.recvfrom(1024)
         
         tempoRtt = time.time() - horarioEnvio
-        print(f"Resposta do servidor: {resposta.decode()} | RTT: {tempoRtt:.4f} segundos")
+        print(f"Resposta do servidor: {resposta.decode()} | RTT: {tempoRtt:.6f} segundos")
         
         return tempoRtt
     
@@ -37,11 +37,9 @@ def listarEstatisticas(listaRtt, pacotesEnviados, pacotesRecebidos):
 
     taxaPerda = ((pacotesEnviados - pacotesRecebidos) / pacotesEnviados) * 100
 
-    print("\n....:::: Estatísticas de Ping ::::....")
-    print(f"..::Pacotes::..")
-    print(f"Enviados = {pacotesEnviados}")
-    print(f"Recebidos = {pacotesRecebidos})")
-    print(f"Perdidos = {pacotesEnviados - pacotesRecebidos}")
+    print(f"Pacotes Enviados = {pacotesEnviados}")
+    print(f"Pacotes Recebidos = {pacotesRecebidos})")
+    print(f"Pacotes Perdidos = {pacotesEnviados - pacotesRecebidos}")
     print(f"Taxa: ({taxaPerda:.2f}% de perda)")
     print(f"RTT (ms): Mínimo = {rttMin * 1000:.6f}, Máximo = {rttMax * 1000:.6f}, Médio = {rttMed * 1000:.6f}")
 
