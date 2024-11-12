@@ -3,13 +3,14 @@ import ssl
 import base64
 import json
 
-# Função para estabelecer a conexão SSL com o servidor
 def criar_conexao_mailserver():
-    servidor_email = ("smtp.gmail.com", 465)
+    PORT = 465
+    SMTP = "smtp.gmail.com"
+    SERVIDOR_EMAIL = (SMTP, PORT)
     cliente_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    cliente_socket.connect(servidor_email)
+    cliente_socket.connect(SERVIDOR_EMAIL)
     contexto_ssl = ssl.create_default_context()
-    cliente_socket = contexto_ssl.wrap_socket(cliente_socket, server_hostname="smtp.gmail.com")
+    cliente_socket = contexto_ssl.wrap_socket(cliente_socket, server_hostname=SMTP)
     return cliente_socket
 
 # Função para enviar o comando EHLO
@@ -24,7 +25,7 @@ def enviar_helo(cliente_socket):
     print("Resposta do servidor ao EHLO:")
     print(resposta)
 
-# Função para autenticar com o servidor
+# Função para autentica 
 def autenticar(cliente_socket, usuario, senha):
     credenciais = f"\000{usuario}\000{senha}".encode()
     credenciais_b64 = base64.b64encode(credenciais).decode()
@@ -39,7 +40,7 @@ def autenticar(cliente_socket, usuario, senha):
     print("Resposta do servidor à autenticação:")
     print(resposta_auth)
 
-# Função para enviar o remetente do e-mail
+# Função para enviar o remetente
 def enviar_remetente(cliente_socket, remetente):
     comando_remetente = f"MAIL FROM: <{remetente}>\r\n"
     cliente_socket.send(comando_remetente.encode())
@@ -63,7 +64,7 @@ def enviar_destinatario(cliente_socket, destinatario):
     print("Resposta do servidor ao comando RCPT TO:")
     print(resposta_destinatario)
 
-# Função para enviar a mensagem do e-mail
+# Função para enviar a mensagem
 def enviar_mensagem(cliente_socket, assunto, corpo_mensagem):
     comando_data = "DATA\r\n"
     cliente_socket.send(comando_data.encode())
@@ -86,7 +87,7 @@ def enviar_mensagem(cliente_socket, assunto, corpo_mensagem):
     print("Resposta do servidor ao envio da mensagem:")
     print(resposta_mensagem)
 
-# Função para encerrar a conexão
+# Função para encerrar
 def encerrar_conexao(cliente_socket):
     comando_quit = "QUIT\r\n"
     cliente_socket.send(comando_quit.encode())
@@ -107,39 +108,24 @@ def ler_credenciais_arquivo(arquivo):
     token = dados.get('token')
     return usuario, token
 
-# Função para ler os dados do e-mail de um arquivo JSON
+# ler os dados do JSON
 def ler_email_info_arquivo(arquivo):
     with open(arquivo, 'r') as f:
         dados_email = json.load(f)
     return dados_email['destinatario'], dados_email['assunto'], dados_email['mensagem']
 
-# Função principal
+
 def main():
-    # Ler as credenciais do arquivo
     usuario, token = ler_credenciais_arquivo('email_info.json')
-
-    # Ler os dados do e-mail do arquivo JSON
     destinatario, assunto, mensagem = ler_email_info_arquivo('email_info.json')
-
+    
     cliente_socket = criar_conexao_mailserver()
-
-    # Enviar EHLO
-    enviar_helo(cliente_socket)
-
-    # Autenticar
+    enviar_helo(cliente_socket) 
     autenticar(cliente_socket, usuario, token)
-
-    # Definir remetente
     remetente = f"{usuario}@gmail.com"
     enviar_remetente(cliente_socket, remetente)
-
-    # Definir destinatário
     enviar_destinatario(cliente_socket, destinatario)
-
-    # Definir assunto e mensagem
     enviar_mensagem(cliente_socket, assunto, mensagem)
-
-    # Encerrar a conexão
     encerrar_conexao(cliente_socket)
 
 if __name__ == "__main__":

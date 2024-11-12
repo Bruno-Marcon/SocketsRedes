@@ -1,7 +1,7 @@
 {
     "usuario": "wesleyredesteste@gmail.com",
     "token": "rbbavsderplqtorh",
-    "destinatario": "bruno.marconcccco@gmail.com",
-    "assunto": "Assunto do e-mail",
-    "mensagem": "Corpo da mensagem do e-mail"
+    "destinatario": "bruno.marconcco@gmail.com",
+    "assunto": "Teste SMTP",
+    "mensagem": "Teste"
 }
