@@ -51,15 +51,15 @@ class Traceroute:
         return header + data
 
     def get_route(self, destination):
-        # Realiza o traceroute para o destino especificado
-        print(f"\nTraceroute para {destination} ({socket.gethostbyname(destination)}), {self.MAX_HOPS} saltos máximos:")
+        print(f"\nTraceroute para {destination} ({socket.gethostbyname(destination)}), {self.MAX_HOPS} saltos máximos:\n")
 
         try:
             dest_addr = socket.gethostbyname(destination)
         except socket.gaierror as e:
-            print(f"Erro: {e.strerror}. Não foi possível resolver o host.")
+            print(f"Erro: {e.strerror}. Não foi possível resolver o host {destination}.")
             return
 
+        rtts = []  # Lista para armazenar os RTTs
         for ttl in range(1, self.MAX_HOPS + 1):
             for attempt in range(self.TRIES):
                 try:
@@ -71,49 +71,84 @@ class Traceroute:
 
                     # Construção e envio do pacote ICMP
                     packet = self.build_packet()
-                    my_socket.sendto(packet, (dest_addr, 0))
+                    try:
+                        my_socket.sendto(packet, (dest_addr, 0))
+                    except Exception as e:
+                        print(f"Falha ao enviar o pacote ICMP no salto {ttl}. Erro: {e}")
+                        continue  # Tente o próximo envio
+
                     start_time = self.default_timer()
 
-                    # Espera pela resposta
+                    # Espera resposta
                     started_select = self.default_timer()
                     ready = select.select([my_socket], [], [], self.TIMEOUT)
                     time_in_select = (self.default_timer() - started_select)
 
-                    if ready[0] == []:  # Timeout
+                    if ready[0] == []:
                         print(f"{ttl:2}  *        *        *    Request timed out.")
                         continue
 
-                    recv_packet, addr = my_socket.recvfrom(1024)
+                    try:
+                        recv_packet, addr = my_socket.recvfrom(1024)
+                    except socket.timeout:
+                        print(f"Timeout ao receber resposta do salto {ttl}.")
+                        continue
+                    except Exception as e:
+                        print(f"Falha ao receber o pacote ICMP no salto {ttl}. Erro: {e}")
+                        continue
+
                     time_received = self.default_timer()
                     icmp_header = recv_packet[20:28]
-                    types, code, checksum, packet_id, sequence = struct.unpack("bbHHh", icmp_header)
+                    
+                    try:
+                        types, code, checksum, packet_id, sequence = struct.unpack("bbHHh", icmp_header)
+                    except struct.error as e:
+                        print(f"Falha ao desempacotar o cabeçalho ICMP no salto {ttl}. Erro: {e}")
+                        continue
 
-                    if types == 11:  # Time Exceeded
+                    # Resolver o nome do host
+                    try:
+                        host_name = socket.gethostbyaddr(addr[0])[0]
+                    except socket.herror:
+                        print(f"Falha ao resolver o nome do host para o IP {addr[0]}")
+                        host_name = addr[0]  # Se falhar, usa o endereço IP
+
+                    if types == 11:
                         bytes_recvd = struct.calcsize("d")
                         time_sent = struct.unpack("d", recv_packet[28:28 + bytes_recvd])[0]
-                        print(f"{ttl:2}  rtt={int((time_received - time_sent) * 1000):3} ms  {addr[0]}")
-                    elif types == 3:  # Destination Unreachable
-                        print(f"{ttl:2}  Destination Unreachable")
-                    elif types == 0:  # Echo Reply (chegou ao destino)
+                        rtt = int((time_received - time_sent) * 1000)
+                        rtts.append(rtt)
+                        print(f"{ttl:2}  rtt={rtt:3} ms  {addr[0]} ({host_name})")
+                    elif types == 3:
+                        print(f"{ttl:2}  Destino inacessivel")
+                    elif types == 0:
                         bytes_recvd = struct.calcsize("d")
                         time_sent = struct.unpack("d", recv_packet[28:28 + bytes_recvd])[0]
-                        print(f"{ttl:2}  rtt={int((time_received - time_sent) * 1000):3} ms  {addr[0]}")
-                        return
-                    else:
-                        print(f"{ttl:2}  Erro desconhecido")
-                        break
-
+                        rtt = int((time_received - time_sent) * 1000)
+                        rtts.append(rtt)
+                        print(f"{ttl:2}  rtt={rtt:3} ms  {addr[0]} ({host_name})")
+                        print(f"\nDestino ({host_name}) alcançado!")
+                        break  # Interrompe o loop de tentativas e saltos quando o destino for alcançado
                 except socket.error as e:
-                    print(f"Erro ao criar o socket: {e}")
+                    print(f"Falha ao criar o socket no salto {ttl}. Erro: {e}")
                     return
                 except Exception as e:
-                    print(f"Erro: {e}")
+                    print(f"Erro inesperado no salto {ttl}. Erro: {e}")
                 finally:
                     my_socket.close()
 
+            # Se o destino foi alcançado, sai do loop de saltos
+            if rtts:
+                print("\nResumo do Traceroute:")
+                print(f"RTT Total: {sum(rtts)} ms")
+                print(f"RTT Máximo: {max(rtts)} ms")
+                print(f"RTT Mínimo: {min(rtts)} ms")
+                break
+        else:
+            print("Destino não alcançado no número máximo de saltos.")
+
 if __name__ == '__main__':
     traceroute = Traceroute(timeout=2, max_hops=30, tries=2)
-    traceroute.get_route("google.com")
-    traceroute.get_route("facebook.com")
-    traceroute.get_route("1.1.1.1")
-    traceroute.get_route("8.8.8.8")
+    #traceroute.get_route("google.com")
+    traceroute.get_route("192.168.1.1")
+    
