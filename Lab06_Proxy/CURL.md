@@ -1,0 +1,1 @@
+# curl -x http://192.168.1.6:8888 -X POST http://videira.ifc.edu.br/ -d "nome=teste&email=teste@dominio.com"

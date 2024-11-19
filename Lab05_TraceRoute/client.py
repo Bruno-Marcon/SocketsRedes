@@ -148,7 +148,7 @@ class Traceroute:
             print("Destino não alcançado no número máximo de saltos.")
 
 if __name__ == '__main__':
-    traceroute = Traceroute(timeout=2, max_hops=30, tries=2)
+    traceroute = Traceroute(timeout=2, max_hops=30, tries=2)ir 
     #traceroute.get_route("google.com")
     traceroute.get_route("192.168.1.1")
     
