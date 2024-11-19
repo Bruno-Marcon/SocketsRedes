@@ -28,7 +28,7 @@ def criar_requisicao(metodo, caminho, host, cabecalhos=None, corpo=None):
     if cabecalhos:
         requisicao += cabecalhos
     if corpo:
-        requisicao += f"Content-Length: {len(corpo)}\r\n\r\n{corpo}"
+        requisicao += f"Content-Length: {len(corpo)}\r\n\r\n{corpo.decode(errors='ignore')}"
     else:
         requisicao += "\r\n"
     return requisicao.encode()
@@ -45,7 +45,11 @@ def processar_requisicao(cliente_socket):
             cliente_socket.sendall(b"HTTP/1.1 405 Metodo Nao Permitido\r\n\r\n")
             return
 
-        url_processada = urllib.parse.urlparse(url.decode() if url.startswith(b'http') else 'http://' + url.decode().lstrip('/'))
+        # Decodifica a URL e ajusta o formato
+        url_decodificada = url.decode()
+        url_processada = urllib.parse.urlparse(
+            url_decodificada if url.startswith(b'http') else 'http://' + url_decodificada.lstrip('/')
+        )
         host = url_processada.hostname
         caminho = url_processada.path or '/'
 
@@ -54,7 +58,7 @@ def processar_requisicao(cliente_socket):
             return
 
         # Verifica se a resposta está no cache
-        resposta_cache = verificar_cache(url.decode())
+        resposta_cache = verificar_cache(url_decodificada)
         if resposta_cache:
             cliente_socket.sendall(resposta_cache)
             return
@@ -66,7 +70,7 @@ def processar_requisicao(cliente_socket):
                 print(f"[INFO] Conectado ao servidor {host}")
 
                 if metodo == b'GET':
-                    requisicao_completa = criar_requisicao(b'GET', caminho, host)
+                    requisicao_completa = criar_requisicao("GET", caminho, host)
                 else:
                     cabecalhos = requisicao.split(b'\n')[1:]
                     comprimento_conteudo = 0
@@ -81,7 +85,8 @@ def processar_requisicao(cliente_socket):
                         while len(corpo) < comprimento_conteudo:
                             corpo += cliente_socket.recv(4096)
 
-                    requisicao_completa = criar_requisicao(b'POST', caminho, host, b'\r\n'.join(cabecalhos), corpo)
+                    cabecalhos_str = b'\r\n'.join(cabecalhos).decode(errors='ignore')
+                    requisicao_completa = criar_requisicao("POST", caminho, host, cabecalhos_str, corpo)
 
                 socket_servidor.sendall(requisicao_completa)
 
@@ -92,19 +97,16 @@ def processar_requisicao(cliente_socket):
 
                 # Tratamento de erros com a resposta
                 if b"404 Not Found" in resposta:
-                    print(f"[INFO] Erro 404 - Página não encontrada para a URL: {url.decode()}")
-                    print(f"[ERRO] Conteúdo da página de erro: {resposta.decode(errors='ignore')}")
+                    print(f"[INFO] Erro 404 - Página não encontrada para a URL: {url_decodificada}")
                 elif b"403 Forbidden" in resposta:
-                    print(f"[INFO] Erro 403 - Acesso proibido para a URL: {url.decode()}")
-                    print(f"[ERRO] Conteúdo da página de erro: {resposta.decode(errors='ignore')}")
+                    print(f"[INFO] Erro 403 - Acesso proibido para a URL: {url_decodificada}")
                 elif b"500 Internal Server Error" in resposta:
-                    print(f"[INFO] Erro 500 - Erro no servidor para a URL: {url.decode()}")
-                    print(f"[ERRO] Conteúdo da página de erro: {resposta.decode(errors='ignore')}")
+                    print(f"[INFO] Erro 500 - Erro no servidor para a URL: {url_decodificada}")
                 else:
                     # Caso contrário, armazena a resposta no cache
                     if resposta:
-                        armazenar_cache(url.decode(), resposta)
-                        print(f"[INFO] Cache salvo para: {url.decode()}")
+                        armazenar_cache(url_decodificada, resposta)
+                        print(f"[INFO] Cache salvo para: {url_decodificada}")
 
                 # Envia a resposta ao cliente
                 cliente_socket.sendall(resposta)
@@ -130,8 +132,7 @@ def iniciar_proxy(ENDERECOSERVIDOR):
         processar_requisicao(cliente_socket)
 
 def main():
-    HOST = '127.0.0.1'
-    HOST2= '0.0.0.0'
+    HOST2 = '0.0.0.0'
     PORT = 8888
     ENDERECOSERVIDOR = (HOST2, PORT)
     
